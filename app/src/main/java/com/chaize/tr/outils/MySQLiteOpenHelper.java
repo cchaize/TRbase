@@ -36,6 +36,7 @@ public class MySQLiteOpenHelper extends SQLiteOpenHelper {
                             "  `description` varchar(50) NOT NULL,\n" +
                             "  `flgTR` int(11) NOT NULL,\n" +
                             "  `credattim` timestamp NOT NULL default CURRENT_TIMESTAMP, \n"+
+                            "  `syncstatus` int(11) NOT NULL,\n" +
                             "    FOREIGN KEY (magasin)\n" +
                             "    REFERENCES TR_magasins (magasin) )";
         creation_base[n++] = "CREATE UNIQUE INDEX IF NOT EXISTS prd0 on TR_produits (`code`,'magasin');";
