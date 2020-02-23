@@ -10,6 +10,9 @@ import androidx.annotation.Nullable;
 
 import com.chaize.tr.controleur.Controle;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.Date;
 import java.util.Random;
 
@@ -44,16 +47,20 @@ public class DbHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    public void saveToLocalDatabase(int sync_status, SQLiteDatabase database){
+    public void saveToLocalDatabase(JSONObject jsonObject, int sync_status, SQLiteDatabase database){
 
-        ContentValues contentValues = new ContentValues();
-        contentValues.put(DbContract.COL_CODE,Long.toString((new Date()).getTime()));
-        contentValues.put(DbContract.COL_MAGASIN,100);
-        contentValues.put(DbContract.COL_DESC,100);
-        contentValues.put(DbContract.COL_FLGTR,new Random().nextInt(3));
-        contentValues.put(DbContract.COL_SYNC,sync_status);
+        try {
+            ContentValues contentValues = new ContentValues();
+            contentValues.put(DbContract.COL_CODE,jsonObject.getString("code"));
+            contentValues.put(DbContract.COL_MAGASIN,jsonObject.getInt("magasin"));
+            contentValues.put(DbContract.COL_DESC,jsonObject.getString("desc"));
+            contentValues.put(DbContract.COL_FLGTR,jsonObject.getInt("flgTR"));
+            contentValues.put(DbContract.COL_SYNC,sync_status);
 
-        database.insert(DbContract.TABLE_NAME, null, contentValues);
+            database.insert(DbContract.TABLE_NAME, null, contentValues);
+        } catch (JSONException e) {
+            Controle.getInstance(null).addLog(Controle.typeLog.ERROR, "DbHelper.saveToLocalDatabase "+e.getLocalizedMessage());
+        }
     }
 
     public Cursor readFromLocalDatabase(SQLiteDatabase database) {
@@ -71,6 +78,8 @@ public class DbHelper extends SQLiteOpenHelper {
     public void updateLocalDatabase(String code, int magasin, String desc, int flgTR, int sync_status, SQLiteDatabase database){
         ContentValues contentValues = new ContentValues();
         contentValues.put(DbContract.COL_SYNC, sync_status);
+        contentValues.put(DbContract.COL_DESC, desc);
+        contentValues.put(DbContract.COL_FLGTR, flgTR);
         String selection = DbContract.COL_CODE+" LIKE ? and "+DbContract.COL_MAGASIN+"= ?";
         String[] selection_args = {code, Integer.toString(magasin)};
         database.update(DbContract.TABLE_NAME, contentValues, selection, selection_args);
