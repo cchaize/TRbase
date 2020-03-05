@@ -1,5 +1,6 @@
 package com.chaize.tr.outils;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -36,6 +37,7 @@ public class MySQLiteOpenHelper extends SQLiteOpenHelper {
                             "  `description` varchar(50) NOT NULL,\n" +
                             "  `flgTR` int(11) NOT NULL,\n" +
                             "  `credattim` timestamp NOT NULL default CURRENT_TIMESTAMP, \n"+
+                            "  `syncstatus` int(11) NOT NULL,\n" +
                             "    FOREIGN KEY (magasin)\n" +
                             "    REFERENCES TR_magasins (magasin) )";
         creation_base[n++] = "CREATE UNIQUE INDEX IF NOT EXISTS prd0 on TR_produits (`code`,'magasin');";
@@ -49,24 +51,26 @@ public class MySQLiteOpenHelper extends SQLiteOpenHelper {
                 "(1, 'Hyper U', '74150', 'Rumilly'),"+
                 "(2, 'E. Leclerc', '74650', 'Chavanod'),"+
                 "(3, 'Carrefour', '42300', 'Mably')";
-        init_base[n++] = "INSERT INTO `TR_produits` (`code`, `magasin`, `description`, `flgTR`, `credattim`) VALUES\n" +
-                            "('0', 1, 'test inconnu', 0, '2019-08-06 19:01:49'),\n" +
-                            "('1', 1, 'test 1 tr', 1, '2019-08-06 19:02:33'),\n" +
-                            "('2', 1, 'test 2 no tr', 2, '2019-08-06 19:02:33');";
-
+        init_base[n++] = "INSERT INTO `TR_produits` (`code`, `magasin`, `description`, `flgTR`, `credattim`, 'syncstatus') VALUES\n" +
+                "('0', 1, 'test inconnu', 0, '2019-08-06 19:01:49', 0),\n" +
+                "('1', 1, 'test 1 tr', 1, '2019-08-06 19:02:33', 0),\n" +
+                "('2', 1, 'test 2 no tr', 2, '2019-08-06 19:02:33', 0);";
     }
 
     /**
      * Si changement de BDD
      * @param sqLiteDatabase
      */
-    @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
+//    @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN)  // Build.VERSION_CODES.JELLY_BEAN = 16
     @Override
     public void onCreate(SQLiteDatabase sqLiteDatabase) {
-        //sqLiteDatabase.enableWriteAheadLogging();
-        this.setWriteAheadLoggingEnabled(true);
-        if (!tableExiste("TR_magasins"))
-            reset();
+        if (Build.VERSION.SDK_INT >=Build.VERSION_CODES.JELLY_BEAN) {
+            //sqLiteDatabase.enableWriteAheadLogging();
+            this.setWriteAheadLoggingEnabled(true);
+        }
+        execSQL(sqLiteDatabase, creation_base);
+        execSQL(sqLiteDatabase, init_base);
     }
 
     public void dropTable(String name){
@@ -99,8 +103,7 @@ public class MySQLiteOpenHelper extends SQLiteOpenHelper {
             dropTable("TR_magasins");
             dropTable("TR_produits");
             dropTable("TR_parametres");
-            execSQL(this.getWritableDatabase(), creation_base);
-            execSQL(this.getWritableDatabase(), init_base);
+            onCreate(this.getWritableDatabase());
         } catch (Exception e){
             Controle.getInstance(null).addLog(Controle.typeLog.ERROR, e.toString());
         }
