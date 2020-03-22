@@ -9,7 +9,13 @@ import android.os.Bundle;
 import com.chaize.tr.R;
 import com.chaize.tr.controleur.Controle;
 import com.chaize.tr.controleur.TRexception;
+import com.chaize.tr.modele.Produit;
+import com.chaize.tr.outils.DbContract;
+import com.chaize.tr.outils.DbHelper;
 import com.chaize.tr.outils.JsonTask;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 import android.content.Intent;
@@ -21,6 +27,9 @@ import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 public class MajActivity extends AppCompatActivity implements OnClickListener {
 
     private Button scanBtn;
@@ -28,6 +37,7 @@ public class MajActivity extends AppCompatActivity implements OnClickListener {
     private ImageButton btnDescRefresh;
     private TextView codeTxt;
     private TextView descTxt;
+    private EditPrix editPrix;
     private Controle controle;
     private RadioButton rdTR, rdNoTR;
     private Button btnConfirm, btnCancel;
@@ -49,6 +59,7 @@ public class MajActivity extends AppCompatActivity implements OnClickListener {
         btnRefresh = findViewById(R.id.btnRefresh);
         btnDescRefresh = findViewById(R.id.btnDescRefresh);
         descTxt = findViewById(R.id.description);
+        editPrix = findViewById(R.id.editPrix);
         btnConfirm = findViewById(R.id.btnConfirm);
         btnCancel = findViewById(R.id.btnCancel);
         rdTR = findViewById(R.id.rdTR);
@@ -145,6 +156,7 @@ public class MajActivity extends AppCompatActivity implements OnClickListener {
                 rdNoTR.setChecked(false);
                 txtFlg = "inconnu";
         }
+        editPrix.setText(this.controle.getPrix().toString());
         Toast toast = Toast.makeText(getApplicationContext(),
                 txtFlg, Toast.LENGTH_SHORT);
         toast.show();
@@ -157,7 +169,21 @@ public class MajActivity extends AppCompatActivity implements OnClickListener {
                 .setPositiveButton("Oui", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
                         // Enregistrer la modif
-                        controle.enregProduit(codeTxt.getText().toString(), descTxt.getText().toString(), rdTR.isChecked()?1:rdNoTR.isChecked()?2:0, MajActivity.this );
+                        //controle.enregProduit(codeTxt.getText().toString(), descTxt.getText().toString(), rdTR.isChecked()?1:rdNoTR.isChecked()?2:0, MajActivity.this );
+                        DbHelper dbHelper = new DbHelper(MajActivity.this);
+                        try {
+                        Produit produit = new Produit(codeTxt.getText().toString(),
+                                Controle.getInstance(MajActivity.this).getMagasin().getSequence(),
+                                descTxt.getText().toString(),
+                                rdTR.isChecked() ? 1 : (rdNoTR.isChecked() ? 2 : 0),
+                                editPrix.getPrix(),
+                                DbContract.SYNC_STATUS_FAILED);
+                            dbHelper.saveProduitToLocalDatabase(produit, produit.getSyncStatus(), dbHelper.getWritableDatabase());
+                        } catch (Exception e) {
+                            Controle.addLog(Controle.typeLog.ERROR, "MajActivity.confirmer.onClick "+e.getLocalizedMessage());
+                            Toast.makeText(MajActivity.this, "L'enregistrement a échoué", Toast.LENGTH_LONG);
+                        }
+                        dbHelper.close();
                     }
                 })
                 .setNegativeButton("Non", new DialogInterface.OnClickListener() {
