@@ -60,14 +60,14 @@ public class AccesDistant implements AsyncResponse {
                 try {
                     Produit produit;
                     if (message[1].equals("notfound")) {
-                        produit = new Produit(message[2], controle.getMagasin().getSequence(), "inconnu", 0, 1);
+                        produit = new Produit(message[2], controle.getMagasin().getSequence(), "inconnu", 0, 0.0f, 1);
                     } else {
                         JSONObject info = new JSONObject(message[1]);
                         String code = info.getString("code");
                         String desc = info.getString("description");
                         Integer flgtr = info.getInt("flgTR");
 
-                        produit = new Produit(code, controle.getMagasin().getSequence(), desc, flgtr, 1);
+                        produit = new Produit(code, controle.getMagasin().getSequence(), desc, flgtr, 0.0f, 1);
                     }
                     controle.setProduit(produit);
 

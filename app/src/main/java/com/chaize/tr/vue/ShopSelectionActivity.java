@@ -1,6 +1,8 @@
 package com.chaize.tr.vue;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.EditText;
@@ -54,6 +56,10 @@ public class ShopSelectionActivity extends AppCompatActivity {
             public void onClick(View view) {
                 if (adapter.getSelectedItem()!=null) {
                     Controle.getInstance(ShopSelectionActivity.this).setMagasin(adapter.getSelectedItem().getShop());
+                    // Renvoie un code retour au MainActivity
+                    Intent intent=new Intent();
+                    setResult(Controle.SEL_MAGASIN_OK,intent);
+
                     onBackPressed();
                 }
                 else {

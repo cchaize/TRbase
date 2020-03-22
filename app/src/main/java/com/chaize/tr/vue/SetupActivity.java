@@ -4,16 +4,16 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.chaize.tr.ListeProduitsActivity;
 import com.chaize.tr.R;
 import com.chaize.tr.controleur.Controle;
+import com.chaize.tr.outils.DbHelper;
 import com.chaize.tr.outils.InternetCheck;
 
 
@@ -42,6 +42,7 @@ public class SetupActivity extends AppCompatActivity implements OnClickListener 
         btnListeProduits= findViewById(R.id.btnListeProduits);
         btnListeProduits.setOnClickListener(this);
         txtStatus = findViewById(R.id.txtStatus);
+        txtStatus.setMovementMethod(new ScrollingMovementMethod());
         refreshStatus();
     }
 
@@ -49,7 +50,10 @@ public class SetupActivity extends AppCompatActivity implements OnClickListener 
         Intent intent;
         switch (v.getId()) {
             case R.id.btnResetLocal:
-                Controle.getInstance(this).resetBaseLocale();
+                DbHelper dbHelper = new DbHelper(this);
+                dbHelper.resetDatabase();
+                dbHelper.close();
+
                 Toast.makeText(this, "Reset base locale", Toast.LENGTH_SHORT).show();
                 break;
             case R.id.btnTestDistant:
@@ -84,8 +88,11 @@ public class SetupActivity extends AppCompatActivity implements OnClickListener 
                 btnTestDistant.setText("Non connecté");
             }
         });
-        txtStatus.setText(Controle.getInstance(this).getBaseStatus());
+        String res;
+        DbHelper dbHelper = new DbHelper(this);
+        txtStatus.setText(dbHelper.status());
         txtStatus.append("\n-----------------------------------\n");
         txtStatus.append(Controle.getInstance(this).getLog());
+        dbHelper.close();
     }
 }

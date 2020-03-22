@@ -6,6 +6,7 @@ import com.chaize.tr.modele.AccesDistant;
 import com.chaize.tr.modele.AccesLocal;
 import com.chaize.tr.modele.Produit;
 import com.chaize.tr.modele.Shop;
+import com.chaize.tr.outils.DbHelper;
 import com.chaize.tr.outils.Serializer;
 import com.chaize.tr.vue.ItemShop;
 import com.chaize.tr.vue.MajActivity;
@@ -28,7 +29,11 @@ public final class Controle {
     private static AccesDistant accesDistant;
     private static Context contexte;
     private static Shop magasin;
-    private ArrayList<String> log = new ArrayList<>();
+    private static ArrayList<String> log = new ArrayList<>();
+
+    // Codes retour des Activity
+    public static final int SEL_MAGASIN=2;
+    public static final int SEL_MAGASIN_OK=3;
 
     public void uploadProduits() {
     }
@@ -68,15 +73,6 @@ public final class Controle {
         return Controle.instance;
     }
 
-    public String getBaseStatus(){
-        String res;
-        res = accesLocal.status();
-        return res;
-    }
-
-    public void resetBaseLocale(){
-        accesLocal.reset(contexte);
-    }
 
     public void chercheProduit(String code) throws TRexception {
         //recupSerialize(contexte);
@@ -115,8 +111,7 @@ public final class Controle {
 
 
     public void enregProduit(String code, String description, Integer flgTR, Context contexte){
-        produit = new Produit(code, this.magasin.getSequence(), description, flgTR, 0);
-        //Serializer.serialize(nomfic, produit, contexte);
+        produit = new Produit(code, this.magasin.getSequence(), description, flgTR, 0.0f, 0);
         if (accesDistant.isAvailable())
             accesDistant.envoi("enreg", produit.convert2JSONArray());
         else
@@ -127,6 +122,12 @@ public final class Controle {
         if (produit==null)
             return 0;
         return produit.getFlgTR();
+    }
+
+    public Float getPrix() {
+        if (produit==null)
+            return 0.0f;
+        return produit.getPrix();
     }
 
     /**
@@ -144,11 +145,11 @@ public final class Controle {
         return produit.getCode();
     }
 
-    public static Shop getMagasin() {
+    public Shop getMagasin() {
         return magasin;
     }
 
-    public static void setMagasin(Shop magasin) {
+    public void setMagasin(Shop magasin) {
         Controle.magasin = magasin;
         accesLocal.enregParam("magasin",String.valueOf(magasin.getSequence()));
     }
@@ -159,7 +160,7 @@ public final class Controle {
         return produit.getDescription();
     }
 
-    public void addLog(typeLog type, String msg){
+    public static void addLog(typeLog type, String msg){
         log.add(type.toString()+" --> "+msg);
         // On ne conserve que les 10 derniers messages
         while (log.size()>10) {
@@ -167,7 +168,7 @@ public final class Controle {
         }
     }
 
-    public String getLog() {
+    public static String getLog() {
         String ret="Log Controleur:\n";
         int i=0;
         while(i<log.size()) {

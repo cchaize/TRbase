@@ -7,22 +7,32 @@
     tools:context=".vue.PanierActivity">
 
     <LinearLayout
-        android:layout_width="409dp"
-        android:layout_height="821dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:orientation="vertical"
         tools:layout_editor_absoluteX="1dp"
         tools:layout_editor_absoluteY="1dp">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/imageButton"
+                android:layout_width="1dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:onClick="resetPanier"
+                android:scaleType="fitCenter"
+                app:srcCompat="@drawable/recycle_bin" />
 
             <Button
                 android:id="@+id/btnScan"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:onClick="scanProduit"
                 android:text="Scanner" />
 
             <Button
@@ -30,13 +40,50 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:onClick="addNoScan"
                 android:text="Sans scan" />
 
         </LinearLayout>
 
+        <EditText
+            android:id="@+id/txtEAN"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="1" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/panierRecyclerView"
+            android:scrollbars="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp">
+
+        </androidx.recyclerview.widget.RecyclerView>
+
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"></LinearLayout>
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="5">
+
+            <TextView
+                android:id="@+id/textView8"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="4"
+                android:gravity="right"
+                android:text="Total TR" />
+
+            <TextView
+                android:id="@+id/txtTotalTR"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="0.0"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
     </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

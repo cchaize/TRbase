@@ -5,11 +5,10 @@ import android.database.Cursor;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
-import android.widget.Toast;
 
 import com.chaize.tr.controleur.Controle;
-import com.chaize.tr.outils.MySQLiteOpenHelper;
-import com.chaize.tr.vue.ItemShop;
+import com.chaize.tr.outils.DbContract;
+import com.chaize.tr.outils.DbHelper;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -21,56 +20,11 @@ public class AccesLocal {
 
     private String nomBase = "bddTR.sqlite";
     private Integer versionBase = 1;
-    private MySQLiteOpenHelper accesBDD;
+    private DbHelper accesBDD;
     private SQLiteDatabase bdd;
 
     public AccesLocal(Context context) {
-        accesBDD = new MySQLiteOpenHelper(context,nomBase,null,versionBase);
-    }
-
-    public JSONArray cursor2Json(Cursor cursor) {
-
-        JSONArray resultSet = new JSONArray();
-        cursor.moveToFirst();
-        while (cursor.isAfterLast() == false) {
-            int totalColumn = cursor.getColumnCount();
-            JSONObject rowObject = new JSONObject();
-            for (int i = 0; i < totalColumn; i++) {
-                if (cursor.getColumnName(i) != null) {
-                    try {
-                        rowObject.put(cursor.getColumnName(i),
-                                cursor.getString(i));
-                    } catch (Exception e) {
-                        Controle.getInstance(null).addLog(Controle.typeLog.ERROR,e.toString());
-                    }
-                }
-            }
-            resultSet.put(rowObject);
-            cursor.moveToNext();
-        }
-
-        cursor.close();
-        return resultSet;
-
-    }
-
-    public void reset(Context context){
-        accesBDD.reset();
-    }
-
-    public String status(){
-        String res="Statut base locale:\n";
-        if (!accesBDD.tableExiste("TR_magasins"))
-            res+="La table TR_magasins n'existe pas\n";
-        if (!accesBDD.tableExiste("TR_produits"))
-            res+="La table TR_produits n'existe pas\n";
-        res+="Liste des tables:\n";
-        try {
-            res += accesBDD.listeTables().toString(3);
-        } catch (JSONException e){
-            Controle.getInstance(null).addLog(Controle.typeLog.ERROR,e.toString());
-        }
-        return res;
+        accesBDD = new DbHelper(context);
     }
 
     public void envoi(String operation, JSONArray lesDonneesJSON) {
@@ -91,7 +45,7 @@ public class AccesLocal {
             req += " and magasin="+jsonParam.getJSONObject(0).getString("magasin")+"";
 
             Cursor curseur = bdd.rawQuery(req, null);
-            JSONArray result = cursor2Json(curseur);
+            JSONArray result = DbHelper.cursor2Json(curseur);
 
             if (result.length()>0) {
                 JSONObject row = result.getJSONObject(0);
@@ -99,7 +53,7 @@ public class AccesLocal {
             } else {
                 produit = new Produit(jsonParam.getJSONObject(0).getString("code"),
                         jsonParam.getJSONObject(0).getInt("magasin"),
-                        "inconnu", 0, 0);
+                        "inconnu", 0, 0.0f, 0);
             }
 
         } catch (Exception e) {
@@ -153,7 +107,7 @@ public class AccesLocal {
                 req+=" Where code_postal="+cPostal;
             }
             Cursor curseur = bdd.rawQuery(req, null);
-            JSONArray result = cursor2Json(curseur);
+            JSONArray result = DbHelper.cursor2Json(curseur);
             for(int i=0;i<result.length();i++) {
                 arrayListMagasins.add(new Shop(result.getJSONObject(i)));
             }
@@ -191,7 +145,7 @@ public class AccesLocal {
             String[] selectionArgs = { param }; // matched to "?" in selection
             Cursor curseur = bdd.query(table, columnsToReturn, selection, selectionArgs, null, null, null);
 
-            JSONArray result = cursor2Json(curseur);
+            JSONArray result = DbHelper.cursor2Json(curseur);
 
             if (result.length()>0) {
                 JSONObject row = result.getJSONObject(0);
@@ -213,7 +167,7 @@ public class AccesLocal {
             String[] selectionArgs = { String.valueOf(seqMagasin) }; // matched to "?" in selection
             Cursor curseur = bdd.query(table, columnsToReturn, selection, selectionArgs, null, null, null);
 
-            JSONArray result = cursor2Json(curseur);
+            JSONArray result = DbHelper.cursor2Json(curseur);
 
             if (result.length()>0) {
                 magasin = new Shop(result.getJSONObject(0));

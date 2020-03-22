@@ -15,11 +15,11 @@ import com.chaize.tr.outils.DbContract;
 
 import java.util.ArrayList;
 
-public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.MyViewHolder> {
+public class ListeProduitsRecyclerAdapter extends RecyclerView.Adapter<ListeProduitsRecyclerAdapter.MyViewHolder> {
 
     private ArrayList<Produit> arrayList = new ArrayList<>();
 
-    public RecyclerAdapter(ArrayList<Produit> arrayList) {
+    public ListeProduitsRecyclerAdapter(ArrayList<Produit> arrayList) {
         this.arrayList = arrayList;
     }
 
