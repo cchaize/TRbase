@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.NumberPicker;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,6 +23,7 @@ import com.chaize.tr.controleur.Controle;
 import com.chaize.tr.modele.Produit;
 import com.chaize.tr.outils.DbContract;
 import com.chaize.tr.outils.DbHelper;
+import com.chaize.tr.outils.ItemClickSupport;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
@@ -33,8 +35,6 @@ import java.util.ArrayList;
 
 public class PanierActivity extends AppCompatActivity {
 
-    float prix;
-
     RecyclerView recyclerView;
     RecyclerView.LayoutManager layoutManager;
 
@@ -45,14 +45,38 @@ public class PanierActivity extends AppCompatActivity {
         @Override
         public void onSwiped(RecyclerView.ViewHolder viewHolder, int swipeDir) {
             //Remove swiped item from list and notify the RecyclerView
-            String code = arrayList.get(viewHolder.getAdapterPosition()).getProduit().getCode();
+            int pos = viewHolder.getAdapterPosition();
+            ItemPanier itemDeleted = arrayList.get(viewHolder.getAdapterPosition());
+            String code = itemDeleted.getProduit().getCode();
             DbHelper dbHelper = new DbHelper(PanierActivity.this);
             dbHelper.removeFromPanier(code, dbHelper.getWritableDatabase());
             dbHelper.close();
-            arrayList.remove(viewHolder.getAdapterPosition());
+            arrayList.remove(pos);
+            readPanier();
             // this line animates what happens after delete
             adapter.notifyItemRemoved(viewHolder.getAdapterPosition());
-            Snackbar.make(recyclerView, "delete successful", Snackbar.LENGTH_SHORT).show();
+            Snackbar snackbar = Snackbar.make(recyclerView, "delete successful", Snackbar.LENGTH_LONG)
+                    .setAction("UNDO", new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            JSONObject jsonParam = new JSONObject();
+                            try {
+                                jsonParam.put("code", code);
+                                jsonParam.put("quantite", itemDeleted.getQuantite());
+                                jsonParam.put("prix", itemDeleted.getPrix());
+                                jsonParam.put("position", itemDeleted.getPosition());
+                                saveToPanier(jsonParam);
+                                readPanier();
+                                Snackbar snackbar1 = Snackbar.make(recyclerView, "Produit remis dans le panier!", Snackbar.LENGTH_SHORT);
+                                snackbar1.show();
+                            } catch (JSONException e) {
+                                Snackbar snackbar1 = Snackbar.make(recyclerView, "erreur!", Snackbar.LENGTH_SHORT);
+                                snackbar1.show();
+                            }
+
+                        }
+                    });
+            snackbar.show();
         }
 
         @Override
@@ -71,6 +95,14 @@ public class PanierActivity extends AppCompatActivity {
         recyclerView.setHasFixedSize(true);
         adapter = new PanierRecyclerAdapter(arrayList);
         recyclerView.setAdapter(adapter);
+        ItemClickSupport.addTo(recyclerView, R.layout.row_panier_layout)
+                .setOnItemClickListener(new ItemClickSupport.OnItemClickListener() {
+                    @Override
+                    public void onItemClicked(RecyclerView recyclerView, int position, View v) {
+                        Toast.makeText(PanierActivity.this, "Position : "+position, Toast.LENGTH_LONG);
+                    }
+                });
+
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(simpleItemTouchCallback);
         itemTouchHelper.attachToRecyclerView(recyclerView);
         readPanier();
@@ -101,6 +133,10 @@ public class PanierActivity extends AppCompatActivity {
 
     public void demanderPrix() {
         final boolean[] result = new boolean[1];
+        EditText txtEan ;
+        EditPrix editPrix ;
+        NumberPicker editQuantite;
+
         AlertDialog.Builder builder = new AlertDialog.Builder(PanierActivity.this);
         // Get the layout inflater
         LayoutInflater inflater = PanierActivity.this.getLayoutInflater();
@@ -108,32 +144,52 @@ public class PanierActivity extends AppCompatActivity {
         // Inflate and set the layout for the dialog
         // Pass null as the parent view because its going in the dialog layout
         builder.setView(dialogLayout);
-        EditText txtEan = findViewById(R.id.txtEAN);
-        EditText et = dialogLayout.findViewById(R.id.txtDemandePrix);
-        // Add action buttons
-        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int id) {
-                try {
-                    prix = Float.parseFloat(et.getText().toString());
-                    JSONObject jsonParam = new JSONObject();
-                    jsonParam.put("code", txtEan.getText());
-                    jsonParam.put("quantite", "1");
-                    jsonParam.put("prix", prix);
+        try {
+            txtEan = findViewById(R.id.txtEAN);
+            editPrix = dialogLayout.findViewById(R.id.txtDemandePrix);
+            editQuantite = dialogLayout.findViewById(R.id.txtDemandeQty);
+            DbHelper dbHelper = new DbHelper(PanierActivity.this);
+            String code = txtEan.getText().toString();
+            int seqMagasin = Controle.getInstance(PanierActivity.this).getMagasin().getSequence();
+            Produit produit = dbHelper.readProduitFromLocalDatabase(code, seqMagasin, dbHelper.getReadableDatabase());
+            editPrix.setText(String.valueOf(produit.getPrix()));
+            dbHelper.close();
+            editQuantite.setValue(1);
+            editQuantite.setMinValue(1);
+            editQuantite.setMaxValue(10);
+            editQuantite.setWrapSelectorWheel(true);
+            // Add action buttons
+            EditPrix finalEditPrix = editPrix;
+            EditText finalTxtEan = txtEan;
+            NumberPicker finalEditQty = editQuantite;
+            builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int id) {
+                    try {
+                        float prix = finalEditPrix.getPrix();
+                        int qty = finalEditQty.getValue();
+                        JSONObject jsonParam = new JSONObject();
+                        jsonParam.put("code", finalTxtEan.getText().toString());
+                        jsonParam.put("quantite", qty);
+                        jsonParam.put("prix", prix);
+                        jsonParam.put("position", arrayList.size()+1);
 
-                    saveToPanier(jsonParam);
-                } catch (JSONException e) {
-                    Controle.addLog(Controle.typeLog.ERROR, "PanierActivity.OnActivityResult " + e.getLocalizedMessage());
-                }
-            }
-        })
-                .setNegativeButton("Annuler", new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) {
-                        // Send the negative button event back to the host activity
+                        saveToPanier(jsonParam);
+                    } catch (JSONException e) {
+                        Controle.addLog(Controle.typeLog.ERROR, "PanierActivity.OnActivityResult " + e.getLocalizedMessage());
                     }
-                });
+                }
+            })
+                    .setNegativeButton("Annuler", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int id) {
+                            // Send the negative button event back to the host activity
+                        }
+                    });
 
-        builder.create().show();
+            builder.create().show();
+        } catch (Exception e) {
+            Controle.addLog(Controle.typeLog.ERROR, e.getLocalizedMessage());
+        }
     }
 
 
@@ -181,10 +237,11 @@ public class PanierActivity extends AppCompatActivity {
                     String code = cursor.getString(cursor.getColumnIndex(DbContract.PAN_CODE));
                     float quantite = cursor.getFloat(cursor.getColumnIndex(DbContract.PAN_QUANTITE));
                     float prix = cursor.getFloat(cursor.getColumnIndex(DbContract.PAN_PRIX));
+                    int position = cursor.getInt(cursor.getColumnIndex(DbContract.PAN_POSITION));
                     Produit produit = dbHelper.readProduitFromLocalDatabase(code, Controle.getInstance(PanierActivity.this).getMagasin().getSequence(), database);
                     produit.setPrix(prix);
-                    arrayList.add(new ItemPanier(produit, quantite, prix));
-                    if (produit.getFlgTR()==1)
+                    arrayList.add(new ItemPanier(produit, quantite, prix, position));
+                    if (produit.getFlgTR() == 1)
                         totalTR += prix * quantite;
                 }
                 cursor.close();
@@ -193,8 +250,8 @@ public class PanierActivity extends AppCompatActivity {
             Controle.addLog(Controle.typeLog.ERROR, "PanierActivity.readPanier " + e.getLocalizedMessage());
         }
 
-        TextView tv = findViewById(R.id.txtTotalTR);
-        tv.setText(Float.toString(totalTR));
+        TextView txtTotal = findViewById(R.id.txtTotalTR);
+        txtTotal.setText(Float.toString(totalTR));
         adapter.notifyDataSetChanged();
 
         dbHelper.close();
