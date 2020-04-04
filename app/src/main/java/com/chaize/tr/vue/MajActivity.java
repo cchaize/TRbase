@@ -41,6 +41,7 @@ public class MajActivity extends AppCompatActivity implements OnClickListener {
     private Controle controle;
     private RadioButton rdTR, rdNoTR;
     private Button btnConfirm, btnCancel;
+    private boolean unique=false;   // indique si plusieurs produits peuvent être mis à jour (false) ou seulement un seul (true)
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +74,14 @@ public class MajActivity extends AppCompatActivity implements OnClickListener {
 
         ((TextView)findViewById(R.id.textNomMagasin)).setText(this.controle.getMagasin().getNom());
         ((TextView)findViewById(R.id.textVille)).setText(this.controle.getMagasin().getVille());
+
+        Intent intent = getIntent();
+        Produit produit = (Produit)intent.getSerializableExtra(Controle.EXTRA_PRODUIT);
+        if (produit!=null) {
+            unique=true;    // on a reçu un produit, on ne permet de mettre à jour que celui-ci
+            Controle.getInstance(this).setProduit(produit);
+            afficheProduit();
+        }
     }
 
     public void onClick(View v){
@@ -113,6 +122,7 @@ public class MajActivity extends AppCompatActivity implements OnClickListener {
     }
 
     public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        super.onActivityResult(requestCode, resultCode, intent);
         IntentResult scanningResult = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent);
         if (scanningResult != null) {
             String scanContent = scanningResult.getContents();
@@ -122,8 +132,7 @@ public class MajActivity extends AppCompatActivity implements OnClickListener {
                 alerter(tRexception.getMessage());
             }
             afficheProduit();
-        }
-        else{
+        } else {
             Toast toast = Toast.makeText(getApplicationContext(),
                     "No scan data received!", Toast.LENGTH_SHORT);
             toast.show();
@@ -184,6 +193,8 @@ public class MajActivity extends AppCompatActivity implements OnClickListener {
                             Toast.makeText(MajActivity.this, "L'enregistrement a échoué", Toast.LENGTH_LONG);
                         }
                         dbHelper.close();
+                        if (unique)
+                            MajActivity.this.finish();
                     }
                 })
                 .setNegativeButton("Non", new DialogInterface.OnClickListener() {

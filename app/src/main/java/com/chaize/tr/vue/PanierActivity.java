@@ -32,6 +32,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Objects;
 
 public class PanierActivity extends AppCompatActivity {
 
@@ -46,37 +47,12 @@ public class PanierActivity extends AppCompatActivity {
         public void onSwiped(RecyclerView.ViewHolder viewHolder, int swipeDir) {
             //Remove swiped item from list and notify the RecyclerView
             int pos = viewHolder.getAdapterPosition();
-            ItemPanier itemDeleted = arrayList.get(viewHolder.getAdapterPosition());
-            String code = itemDeleted.getProduit().getCode();
-            DbHelper dbHelper = new DbHelper(PanierActivity.this);
-            dbHelper.removeFromPanier(code, dbHelper.getWritableDatabase());
-            dbHelper.close();
-            arrayList.remove(pos);
-            readPanier();
-            // this line animates what happens after delete
-            adapter.notifyItemRemoved(viewHolder.getAdapterPosition());
-            Snackbar snackbar = Snackbar.make(recyclerView, "delete successful", Snackbar.LENGTH_LONG)
-                    .setAction("UNDO", new View.OnClickListener() {
-                        @Override
-                        public void onClick(View view) {
-                            JSONObject jsonParam = new JSONObject();
-                            try {
-                                jsonParam.put("code", code);
-                                jsonParam.put("quantite", itemDeleted.getQuantite());
-                                jsonParam.put("prix", itemDeleted.getPrix());
-                                jsonParam.put("position", itemDeleted.getPosition());
-                                saveToPanier(jsonParam);
-                                readPanier();
-                                Snackbar snackbar1 = Snackbar.make(recyclerView, "Produit remis dans le panier!", Snackbar.LENGTH_SHORT);
-                                snackbar1.show();
-                            } catch (JSONException e) {
-                                Snackbar snackbar1 = Snackbar.make(recyclerView, "erreur!", Snackbar.LENGTH_SHORT);
-                                snackbar1.show();
-                            }
-
-                        }
-                    });
-            snackbar.show();
+            if (swipeDir == ItemTouchHelper.LEFT) {
+                deleteItem(pos);
+            } else {
+                ItemPanier itemSelected = arrayList.get(pos);
+                updateProduitFromPanier(itemSelected);
+            }
         }
 
         @Override
@@ -84,6 +60,47 @@ public class PanierActivity extends AppCompatActivity {
             return false;
         }
     };
+
+    public void deleteItem(int pos) {
+        ItemPanier itemSelected = arrayList.get(pos);
+        String code = itemSelected.getProduit().getCode();
+        DbHelper dbHelper = new DbHelper(PanierActivity.this);
+        dbHelper.removeFromPanier(code, dbHelper.getWritableDatabase());
+        dbHelper.close();
+        arrayList.remove(pos);
+        readPanier();
+        // this line animates what happens after delete
+        adapter.notifyItemRemoved(pos);
+        Snackbar snackbar = Snackbar.make(recyclerView, "delete successful", Snackbar.LENGTH_LONG)
+                .setAction("UNDO", new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        JSONObject jsonParam = new JSONObject();
+                        try {
+                            jsonParam.put("code", code);
+                            jsonParam.put("quantite", itemSelected.getQuantite());
+                            jsonParam.put("prix", itemSelected.getPrix());
+                            jsonParam.put("position", itemSelected.getPosition());
+                            saveToPanier(jsonParam);
+                            readPanier();
+                            Snackbar snackbar1 = Snackbar.make(recyclerView, "Produit remis dans le panier!", Snackbar.LENGTH_SHORT);
+                            snackbar1.show();
+                        } catch (JSONException e) {
+                            Snackbar snackbar1 = Snackbar.make(recyclerView, "erreur!", Snackbar.LENGTH_SHORT);
+                            snackbar1.show();
+                        }
+
+                    }
+                });
+        snackbar.show();
+    }
+
+    private void updateProduitFromPanier(ItemPanier itemSelected) {
+        Intent intent;
+        intent = new Intent(PanierActivity.this, MajActivity.class);
+        intent.putExtra(Controle.EXTRA_PRODUIT, itemSelected.getProduit());
+        startActivityForResult(intent, Controle.MAJ_PRODUIT_FROM_PANIER);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,7 +116,7 @@ public class PanierActivity extends AppCompatActivity {
                 .setOnItemClickListener(new ItemClickSupport.OnItemClickListener() {
                     @Override
                     public void onItemClicked(RecyclerView recyclerView, int position, View v) {
-                        Toast.makeText(PanierActivity.this, "Position : "+position, Toast.LENGTH_LONG);
+                        demanderPrix(arrayList.get(position).getProduit().getCode(), arrayList.get(position).getPrix(), arrayList.get(position).getQuantite());
                     }
                 });
 
@@ -109,7 +126,8 @@ public class PanierActivity extends AppCompatActivity {
     }
 
     public void addNoScan(View view) {
-        demanderPrix();
+        EditText txtEan = findViewById(R.id.txtEAN);
+        demanderPrix(txtEan.getText().toString());
     }
 
     public void scanProduit(View view) {
@@ -118,23 +136,38 @@ public class PanierActivity extends AppCompatActivity {
     }
 
     public void onActivityResult(int requestCode, int resultCode, Intent intent) {
-        IntentResult scanningResult = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent);
-        if (scanningResult != null) {
-            String codeEAN = scanningResult.getContents();
-            EditText txtEan = findViewById(R.id.txtEAN);
-            txtEan.setText(codeEAN);
-            demanderPrix();
-        } else {
-            Toast toast = Toast.makeText(getApplicationContext(),
-                    "No scan data received!", Toast.LENGTH_SHORT);
-            toast.show();
+        super.onActivityResult(requestCode, resultCode, intent);
+        switch (requestCode) {
+            case Controle.MAJ_PRODUIT_FROM_PANIER:
+                // On relit le panier pour récupérer la désignation qui aurait pu être mise à jour
+                readPanier();
+
+        }
+        if (intent != null) {
+            switch (Objects.requireNonNull(intent.getAction())) {
+                case "com.google.zxing.client.android.SCAN":
+                    IntentResult scanningResult = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent);
+                    if (scanningResult != null) {
+                        String codeEAN = scanningResult.getContents();
+                        EditText txtEan = findViewById(R.id.txtEAN);
+                        txtEan.setText(codeEAN);
+                        demanderPrix(codeEAN);
+                    } else {
+                        Toast toast = Toast.makeText(getApplicationContext(),
+                                "No scan data received!", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+            }
         }
     }
 
-    public void demanderPrix() {
+    public void demanderPrix(String code) {
+        demanderPrix(code, 0.0f, 0);
+    }
+
+    public void demanderPrix(String code, float prix, int quantite) {
         final boolean[] result = new boolean[1];
-        EditText txtEan ;
-        EditPrix editPrix ;
+        EditPrix editPrix;
         NumberPicker editQuantite;
 
         AlertDialog.Builder builder = new AlertDialog.Builder(PanierActivity.this);
@@ -145,22 +178,24 @@ public class PanierActivity extends AppCompatActivity {
         // Pass null as the parent view because its going in the dialog layout
         builder.setView(dialogLayout);
         try {
-            txtEan = findViewById(R.id.txtEAN);
             editPrix = dialogLayout.findViewById(R.id.txtDemandePrix);
             editQuantite = dialogLayout.findViewById(R.id.txtDemandeQty);
-            DbHelper dbHelper = new DbHelper(PanierActivity.this);
-            String code = txtEan.getText().toString();
-            int seqMagasin = Controle.getInstance(PanierActivity.this).getMagasin().getSequence();
-            Produit produit = dbHelper.readProduitFromLocalDatabase(code, seqMagasin, dbHelper.getReadableDatabase());
-            editPrix.setText(String.valueOf(produit.getPrix()));
-            dbHelper.close();
-            editQuantite.setValue(1);
+
+            if (prix == 0.0f) {
+                DbHelper dbHelper = new DbHelper(PanierActivity.this);
+                int seqMagasin = Controle.getInstance(PanierActivity.this).getMagasin().getSequence();
+                Produit produit = dbHelper.readProduitFromLocalDatabase(code, seqMagasin, dbHelper.getReadableDatabase());
+                editPrix.setText(String.valueOf(produit.getPrix()));
+                dbHelper.close();
+            } else {
+                editPrix.setText(String.valueOf(prix));
+            }
             editQuantite.setMinValue(1);
             editQuantite.setMaxValue(10);
             editQuantite.setWrapSelectorWheel(true);
+            editQuantite.setValue(quantite);
             // Add action buttons
             EditPrix finalEditPrix = editPrix;
-            EditText finalTxtEan = txtEan;
             NumberPicker finalEditQty = editQuantite;
             builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                 @Override
@@ -169,10 +204,10 @@ public class PanierActivity extends AppCompatActivity {
                         float prix = finalEditPrix.getPrix();
                         int qty = finalEditQty.getValue();
                         JSONObject jsonParam = new JSONObject();
-                        jsonParam.put("code", finalTxtEan.getText().toString());
+                        jsonParam.put("code", code);
                         jsonParam.put("quantite", qty);
                         jsonParam.put("prix", prix);
-                        jsonParam.put("position", arrayList.size()+1);
+                        jsonParam.put("position", arrayList.size() + 1);
 
                         saveToPanier(jsonParam);
                     } catch (JSONException e) {
@@ -235,7 +270,7 @@ public class PanierActivity extends AppCompatActivity {
             if (cursor != null) {
                 while (cursor.moveToNext()) {
                     String code = cursor.getString(cursor.getColumnIndex(DbContract.PAN_CODE));
-                    float quantite = cursor.getFloat(cursor.getColumnIndex(DbContract.PAN_QUANTITE));
+                    int quantite = cursor.getInt(cursor.getColumnIndex(DbContract.PAN_QUANTITE));
                     float prix = cursor.getFloat(cursor.getColumnIndex(DbContract.PAN_PRIX));
                     int position = cursor.getInt(cursor.getColumnIndex(DbContract.PAN_POSITION));
                     Produit produit = dbHelper.readProduitFromLocalDatabase(code, Controle.getInstance(PanierActivity.this).getMagasin().getSequence(), database);

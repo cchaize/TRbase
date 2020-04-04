@@ -3,19 +3,32 @@ package com.chaize.tr.outils;
 import android.annotation.TargetApi;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Build;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.Observer;
 
+import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
 import com.chaize.tr.controleur.Controle;
 import com.chaize.tr.modele.Produit;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class DbHelper extends SQLiteOpenHelper {
 
@@ -55,7 +68,8 @@ public class DbHelper extends SQLiteOpenHelper {
         creation_base[n++] = "CREATE TABLE IF NOT EXISTS `TR_panier` (\n" +
                 DbContract.PAN_CODE + " varchar(13) PRIMARY KEY NOT NULL,\n" +
                 DbContract.PAN_QUANTITE + " int(3) NOT NULL,\n" +
-                DbContract.PAN_PRIX + " decimal(5,2) NOT NULL)";
+                DbContract.PAN_PRIX + " decimal(5,2) NOT NULL,\n"+
+                DbContract.PAN_POSITION + " int(3) NOT NULL)";
         creation_base[n++] = "CREATE UNIQUE INDEX IF NOT EXISTS pan0 on " + DbContract.PAN_TABLE_NAME + " (" + DbContract.PAN_CODE + ");";
 
         n = 0;
@@ -233,7 +247,7 @@ public class DbHelper extends SQLiteOpenHelper {
         contentValues.put(DbContract.PRD_PRIX, produit.getPrix());
         contentValues.put(DbContract.PRD_SYNC, sync_status);
 
-        database.insert(DbContract.PRD_TABLE_NAME, null, contentValues);
+        database.replace(DbContract.PRD_TABLE_NAME, null, contentValues);
     }
 
     public Cursor readTousProduitsFromLocalDatabase(SQLiteDatabase database) {
@@ -270,11 +284,12 @@ public class DbHelper extends SQLiteOpenHelper {
         }
     }
 
-    public void updateProduitIntoLocalDatabase(String code, int magasin, String desc, int flgTR, int sync_status, SQLiteDatabase database) {
+    public void updateProduitIntoLocalDatabase(String code, int magasin, String desc, int flgTR, float prix, int sync_status, SQLiteDatabase database) {
         ContentValues contentValues = new ContentValues();
         contentValues.put(DbContract.PRD_SYNC, sync_status);
         contentValues.put(DbContract.PRD_DESC, desc);
         contentValues.put(DbContract.PRD_FLGTR, flgTR);
+        contentValues.put(DbContract.PRD_PRIX, prix);
         String selection = DbContract.PRD_CODE + " = ? and " + DbContract.PRD_MAGASIN + "= ?";
         String[] selection_args = {code, Integer.toString(magasin)};
         database.update(DbContract.PRD_TABLE_NAME, contentValues, selection, selection_args);
@@ -302,9 +317,10 @@ public class DbHelper extends SQLiteOpenHelper {
             ContentValues contentValues = new ContentValues();
             contentValues.put(DbContract.PAN_CODE, jsonObject.getString("code"));
             contentValues.put(DbContract.PAN_QUANTITE, jsonObject.getInt("quantite"));
-            contentValues.put(DbContract.PAN_PRIX, jsonObject.getInt("prix"));
+            contentValues.put(DbContract.PAN_PRIX, jsonObject.getDouble("prix"));
+            contentValues.put(DbContract.PAN_POSITION, jsonObject.getDouble("position"));
 
-            database.insert(DbContract.PAN_TABLE_NAME, null, contentValues);
+            database.replace(DbContract.PAN_TABLE_NAME, null, contentValues);
         } catch (JSONException e) {
             Controle.addLog(Controle.typeLog.ERROR, "DbHelper.saveProduitToPanier " + e.getLocalizedMessage());
         }
@@ -312,13 +328,89 @@ public class DbHelper extends SQLiteOpenHelper {
 
     public Cursor readPanierFromLocalDatabase(SQLiteDatabase database) {
         try {
-            String[] projection = {DbContract.PAN_CODE, DbContract.PAN_QUANTITE, DbContract.PAN_PRIX};
+            String[] projection = {DbContract.PAN_CODE, DbContract.PAN_QUANTITE, DbContract.PAN_PRIX, DbContract.PAN_POSITION};
 
-            return (database.query(DbContract.PAN_TABLE_NAME, projection, null, null, null, null, null));
+            return (database.query(DbContract.PAN_TABLE_NAME, projection, null, null, null, null, DbContract.PAN_POSITION));
         } catch (Exception e) {
             Controle.addLog(Controle.typeLog.ERROR, "DbHelper.readPanierFromLocalDatabase " + e.getLocalizedMessage());
             return null;
         }
+    }
+
+    public static void synchronize(Context context, int force){
+        DbHelper dbHelper = new DbHelper(context);
+        SQLiteDatabase database = dbHelper.getWritableDatabase();
+
+        Cursor cursor = dbHelper.readTousProduitsFromLocalDatabase(database);
+
+        while (cursor.moveToNext()) {
+            int sync_status = cursor.getInt(cursor.getColumnIndex((DbContract.PRD_SYNC)));
+            if (sync_status == DbContract.SYNC_STATUS_FAILED || force==1) {
+                final String code = cursor.getString(cursor.getColumnIndex(DbContract.PRD_CODE));
+                final Integer magasin = cursor.getInt(cursor.getColumnIndex(DbContract.PRD_MAGASIN));
+                final String desc = cursor.getString(cursor.getColumnIndex(DbContract.PRD_DESC));
+                final Integer flgTR = cursor.getInt(cursor.getColumnIndex(DbContract.PRD_FLGTR));
+                final Float prix = cursor.getFloat(cursor.getColumnIndex(DbContract.PRD_PRIX));
+                StringRequest stringRequest = new StringRequest(Request.Method.POST, DbContract.SERVER_URL,
+                        new Response.Listener<String>() {
+                            @Override
+                            public void onResponse(String response) {
+                                try {
+                                    JSONObject jsonObject = new JSONObject(response);
+                                    String strResponse = jsonObject.getString("response");
+                                    if (strResponse.equals("OK")) {
+                                        dbHelper.updateProduitIntoLocalDatabase(code, magasin, desc, flgTR, prix, DbContract.SYNC_STATUS_OK, database);
+                                        context.sendBroadcast(new Intent(DbContract.UI_UPDATE_BROADCAST));
+                                    } else {
+                                        Toast.makeText(context,"La mise à jour sur le serveur a échoué "+code+" "+desc,Toast.LENGTH_SHORT).show();
+                                    }
+                                } catch (Exception e) {
+                                    Controle.getInstance(context).addLog(Controle.typeLog.ERROR, "ListeProduitsActivity.onResponse " + e.getLocalizedMessage() + " : server response= " + response);
+                                }
+
+
+                            }
+                        }, new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Toast.makeText(context, "Error while updating server: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                }) {
+                    @Override
+                    protected Map<String, String> getParams() throws AuthFailureError {
+                        Map<String, String> params = new HashMap<>();
+                        params.put("code", code);
+                        params.put("magasin", String.valueOf(magasin));
+                        params.put("description", desc);
+                        params.put("flgTR", String.valueOf(flgTR));
+                        params.put("prix", String.valueOf(prix));
+                        return params;
+                    }
+                };
+
+                MySingleton.getInstance(context).addToRequestQueue(stringRequest);
+            }
+        }
+        cursor.close();
+        //dbHelper.close();
+
+    }
+
+    public static void initSynchronization(AppCompatActivity activity){
+        ConnectionStateMonitor connectionStateMonitor = new ConnectionStateMonitor(activity);
+        connectionStateMonitor.observe(activity, new Observer<Boolean>() {
+            public void onChanged(Boolean aBoolean) {
+                if (aBoolean) {
+                    // network available
+                    //Context context = MainActivity.this;
+                    if (ConnectionStateMonitor.checkNetworkConnection(activity)) {
+                        DbHelper.synchronize(activity, 0);
+                    }
+                } else {
+                    // network lost
+                }
+            }
+        });
     }
 
 

@@ -42,4 +42,5 @@ public class DbContract {
     public static final String PAN_CODE = PRD_CODE;
     public static final String PAN_QUANTITE = "quantite";
     public static final String PAN_PRIX = "prix";
+    public static final String PAN_POSITION = "position";
 }

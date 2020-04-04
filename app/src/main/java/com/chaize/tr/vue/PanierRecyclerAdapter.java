@@ -11,7 +11,6 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.chaize.tr.R;
-import com.chaize.tr.modele.Produit;
 import com.chaize.tr.outils.DbContract;
 
 import java.util.ArrayList;
@@ -38,6 +37,7 @@ public class PanierRecyclerAdapter extends RecyclerView.Adapter<PanierRecyclerAd
         holder.code.setText(arrayList.get(position).getProduit().getCode());
         holder.description.setText(arrayList.get(position).getProduit().getDescription());
         holder.prix.setText(Float.toString(arrayList.get(position).getPrix()));
+        holder.quantite.setText(Float.toString(arrayList.get(position).getQuantite()));
         int flgTR = arrayList.get(position).getProduit().getFlgTR();
         switch (flgTR) {
             case DbContract.TR_ACCEPTE:
@@ -55,6 +55,7 @@ public class PanierRecyclerAdapter extends RecyclerView.Adapter<PanierRecyclerAd
         } else {
             holder.itemView.setBackgroundColor(Color.parseColor("#FAF8FD"));
         }
+
     }
 
     @Override
@@ -68,6 +69,7 @@ public class PanierRecyclerAdapter extends RecyclerView.Adapter<PanierRecyclerAd
         TextView code;
         TextView description;
         TextView prix;
+        TextView quantite;
 
         public MyViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -75,6 +77,7 @@ public class PanierRecyclerAdapter extends RecyclerView.Adapter<PanierRecyclerAd
             code = itemView.findViewById(R.id.txtCode);
             description = itemView.findViewById(R.id.txtDesc);
             prix = itemView.findViewById(R.id.txtPrix);
+            quantite = itemView.findViewById(R.id.txtQty);
         }
     }
 }

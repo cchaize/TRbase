@@ -36,6 +36,7 @@ public class ListeProduitsRecyclerAdapter extends RecyclerView.Adapter<ListeProd
 
         holder.code.setText(arrayList.get(position).getCode());
         holder.description.setText(arrayList.get(position).getDescription());
+        holder.prix.setText(String.valueOf(arrayList.get(position).getPrix()));
         int syncStatus = arrayList.get(position).getSyncStatus();
         if (syncStatus== DbContract.SYNC_STATUS_OK) {
             holder.syncStatus.setImageResource(R.drawable.sync_ok);
@@ -54,12 +55,14 @@ public class ListeProduitsRecyclerAdapter extends RecyclerView.Adapter<ListeProd
         ImageView syncStatus;
         TextView code;
         TextView description;
+        TextView prix;
 
         public MyViewHolder(@NonNull View itemView) {
             super(itemView);
             syncStatus = itemView.findViewById(R.id.imgSync);
             code = itemView.findViewById(R.id.txtCode);
             description = itemView.findViewById(R.id.txtDesc);
+            prix = itemView.findViewById(R.id.txtPrix);
         }
     }
 }

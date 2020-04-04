@@ -24,9 +24,9 @@ public class JsonTask extends AsyncTask<String, String, String> {
     private Context context;
     private ProgressDialog pd;
     private TextView result;
-    private String error="";
+    private String error = "";
 
-    public JsonTask(Context context, TextView res){
+    public JsonTask(Context context, TextView res) {
         super();
         this.context = context;
         this.result = res;
@@ -61,7 +61,7 @@ public class JsonTask extends AsyncTask<String, String, String> {
             String line = "";
 
             while ((line = reader.readLine()) != null) {
-                buffer.append(line+"\n");
+                buffer.append(line + "\n");
                 //Log.d("Response: ", "> " + line);   //here u ll get whole response...... :-)
 
             }
@@ -70,10 +70,10 @@ public class JsonTask extends AsyncTask<String, String, String> {
 
 
         } catch (MalformedURLException e) {
-            Controle.getInstance(null).addLog(Controle.typeLog.ERROR, "JsonTask.doInBackground : "+e.toString());
+            Controle.getInstance(null).addLog(Controle.typeLog.ERROR, "JsonTask.doInBackground : " + e.toString());
             error = e.getLocalizedMessage();
         } catch (IOException e) {
-            Controle.getInstance(null).addLog(Controle.typeLog.ERROR, "JsonTask.doInBackground : "+e.toString());
+            Controle.getInstance(null).addLog(Controle.typeLog.ERROR, "JsonTask.doInBackground : " + e.toString());
             error = e.getLocalizedMessage();
         } finally {
             if (connection != null) {
@@ -84,7 +84,7 @@ public class JsonTask extends AsyncTask<String, String, String> {
                     reader.close();
                 }
             } catch (IOException e) {
-                Controle.getInstance(null).addLog(Controle.typeLog.ERROR, "JsonTask.doInBackground : "+e.toString());
+                Controle.getInstance(null).addLog(Controle.typeLog.ERROR, "JsonTask.doInBackground : " + e.toString());
                 error = e.getLocalizedMessage();
             }
         }
@@ -95,28 +95,37 @@ public class JsonTask extends AsyncTask<String, String, String> {
     protected void onPostExecute(String result) {
         super.onPostExecute(result);
 
-        if (pd.isShowing()){
+        String cles[] = {"product_name_fr", "product_name", "generic_name_fr", "generic_name", "ingredients_text_fr", "ingredients_text"};
+
+        if (pd.isShowing()) {
             pd.dismiss();
         }
         if (error.equals("")) {
-            String text = "Produit inconnu";
+            String marque = "";
+            String text = "";
             try {
                 if (result != null) {
                     JSONObject json = new JSONObject(result);
-                    text = json.getJSONObject("product").getString("generic_name");
-                    if (text.equals("")) {
-                        text = json.getJSONObject("product").getString("ingredients_text_fr");
-                        if (text.equals("")) {
-                            text = json.getJSONObject("product").getString("ingredients_text");
+                    if (json.has("product")) {
+                        json = json.getJSONObject("product");
+                        int i = 0;
+                        while (text.equals("")) {
+                            if (json.has(cles[i]))
+                                text = json.getString(cles[i]);
+                            i++;
                         }
+                        if (json.has("brands"))
+                            marque = json.getString("brands");
                     }
                 }
             } catch (JSONException e) {
                 Controle.getInstance(null).addLog(Controle.typeLog.ERROR, "JsonTask.onPostExecute : " + e.toString());
             }
-            this.result.setText(text);
+            if (text.equals(""))
+                text = "Produit inconnu";
+            this.result.setText(marque + " - " + text);
         } else {
-            Toast.makeText(context,error,Toast.LENGTH_LONG).show();
+            Toast.makeText(context, error, Toast.LENGTH_LONG).show();
         }
     }
 }

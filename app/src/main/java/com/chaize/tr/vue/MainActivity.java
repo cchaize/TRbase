@@ -11,6 +11,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.chaize.tr.R;
 import com.chaize.tr.controleur.Controle;
+import com.chaize.tr.outils.DbHelper;
+import com.chaize.tr.outils.MySingleton;
 
 public class MainActivity extends AppCompatActivity implements OnClickListener {
 
@@ -24,6 +26,13 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         init();
+        DbHelper.initSynchronization(this);
+    }
+
+    @Override
+    protected void onStop() {
+        MySingleton.getInstance(MainActivity.this).cancelAll();
+        super.onStop();
     }
 
     private void init() {
@@ -36,7 +45,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
         btnCourses = findViewById(R.id.btnCourses);
         btnCourses.setOnClickListener(this);
         if (Controle.getInstance(this).getMagasin().getSequence() == 0) {
-            Toast.makeText(this, "Veuillez d'abord sélectionner un magasin", Toast.LENGTH_LONG);
+            Toast.makeText(this, "Veuillez d'abord sélectionner un magasin", Toast.LENGTH_LONG).show();
             btnMaj.setEnabled(false);
             btnCourses.setEnabled(false);
         }

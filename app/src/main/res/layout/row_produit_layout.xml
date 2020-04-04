@@ -9,37 +9,44 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginLeft="12dp"
-        android:layout_marginRight="22dp">
+        android:layout_marginRight="12dp">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:layout_alignParentLeft="true">
+            android:layout_alignParentLeft="true"
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/txtCode"
-                android:layout_width="117dp"
+                android:layout_width="110dp"
                 android:layout_height="match_parent"
                 android:gravity="center"
                 android:text="Code EAN"
-                android:textSize="18sp" />
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/txtDesc"
-                android:layout_width="208dp"
+                android:layout_width="137dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:gravity="center_vertical"
                 android:text="Designation"
-                android:textSize="18sp" />
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/txtPrix"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="TextView" />
+
+            <ImageView
+                android:id="@+id/imgSync"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                app:srcCompat="@drawable/sync" />
         </LinearLayout>
 
-        <ImageView
-            android:id="@+id/imgSync"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            app:srcCompat="@drawable/sync"
-            android:layout_alignParentRight="true" />
     </RelativeLayout>
 </LinearLayout>

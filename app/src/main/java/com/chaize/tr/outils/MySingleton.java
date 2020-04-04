@@ -17,8 +17,10 @@ public class MySingleton {
     }
 
     private RequestQueue getRequestQueue() {
-        if (requestQueue==null)
+        if (requestQueue==null) {
             requestQueue = Volley.newRequestQueue(mCtx.getApplicationContext());
+            requestQueue.start();
+        }
         return requestQueue;
     }
 
@@ -31,6 +33,11 @@ public class MySingleton {
     }
 
     public <T> void addToRequestQueue(Request<T> request) {
+        request.setTag(this);
         getRequestQueue().add(request);
+    }
+
+    public void cancelAll() {
+        requestQueue.cancelAll(this);
     }
 }

@@ -1,10 +1,5 @@
 package com.chaize.tr.vue;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.Observer;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -13,6 +8,13 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
@@ -50,12 +52,13 @@ public class ListeProduitsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_liste_produits);
-        recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
+        recyclerView = findViewById(R.id.recyclerView);
         layoutManager = new LinearLayoutManager(this);
         recyclerView.setLayoutManager(layoutManager);
         recyclerView.setHasFixedSize(true);
         adapter = new ListeProduitsRecyclerAdapter(arrayList);
         recyclerView.setAdapter(adapter);
+        DbHelper.initSynchronization(this);
         readFromLocalStorage();
         broadcastReceiver = new BroadcastReceiver() {
             @Override
@@ -63,82 +66,54 @@ public class ListeProduitsActivity extends AppCompatActivity {
                 readFromLocalStorage();
             }
         };
-        ConnectionStateMonitor connectionStateMonitor = new ConnectionStateMonitor(this);
-        connectionStateMonitor.observe(this, new Observer<Boolean>() {
-            public void onChanged(Boolean aBoolean) {
-                if (aBoolean) {
-                    // network available
-                    Context context = ListeProduitsActivity.this;
-                    if (ConnectionStateMonitor.checkNetworkConnection(context)) {
-                        DbHelper dbHelper = new DbHelper(context);
-                        SQLiteDatabase database = dbHelper.getWritableDatabase();
+        ItemTouchHelper.SimpleCallback simpleItemTouchCallback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.RIGHT) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
+                return false;
+            }
 
-                        Cursor cursor = dbHelper.readTousProduitsFromLocalDatabase(database);
-
-                        while (cursor.moveToNext()) {
-                            int sync_status = cursor.getInt(cursor.getColumnIndex((DbContract.PRD_SYNC)));
-                            if (sync_status == DbContract.SYNC_STATUS_FAILED) {
-                                final String code = cursor.getString(cursor.getColumnIndex(DbContract.PRD_CODE));
-                                final Integer magasin = cursor.getInt(cursor.getColumnIndex(DbContract.PRD_MAGASIN));
-                                final String desc = cursor.getString(cursor.getColumnIndex(DbContract.PRD_DESC));
-                                final Integer flgTR = cursor.getInt(cursor.getColumnIndex(DbContract.PRD_FLGTR));
-                                StringRequest stringRequest = new StringRequest(Request.Method.POST, DbContract.SERVER_URL,
-                                        new Response.Listener<String>() {
-                                            @Override
-                                            public void onResponse(String response) {
-                                                try {
-                                                    JSONObject jsonObject = new JSONObject(response);
-                                                    String strResponse = jsonObject.getString("response");
-                                                    if (strResponse.equals("OK")) {
-                                                        dbHelper.updateProduitIntoLocalDatabase(code, magasin, desc, flgTR, DbContract.SYNC_STATUS_OK, database);
-                                                        context.sendBroadcast(new Intent(DbContract.UI_UPDATE_BROADCAST));
-
-                                                    }
-                                                } catch (JSONException e) {
-                                                    Controle.getInstance(context).addLog(Controle.typeLog.ERROR, "NetworkMonitor.onResponse " + e.getLocalizedMessage());
-                                                }
-
-
-                                            }
-                                        }, new Response.ErrorListener() {
-                                    @Override
-                                    public void onErrorResponse(VolleyError error) {
-
-                                    }
-                                }) {
-                                    @Override
-                                    protected Map<String, String> getParams() throws AuthFailureError {
-                                        Map<String, String> params = new HashMap<>();
-                                        params.put("code", code);
-                                        params.put("magasin", String.valueOf(magasin));
-                                        params.put("desc", desc);
-                                        params.put("flgTR", String.valueOf(flgTR));
-                                        return params;
-                                    }
-                                };
-
-                                MySingleton.getInstance(context).addToRequestQueue(stringRequest);
-                            }
-                        }
-                        //cursor.close();
-                        //dbHelper.close();
-                    }
-                } else {
-                    // network lost
+            @Override
+            public void onSwiped(RecyclerView.ViewHolder viewHolder, int swipeDir) {
+                Toast.makeText(ListeProduitsActivity.this, "swiped", Toast.LENGTH_SHORT).show();
+                //Remove swiped item from list and notify the RecyclerView
+                int pos = viewHolder.getAdapterPosition();
+                if (swipeDir == ItemTouchHelper.RIGHT) {
+                    Produit itemSelected = arrayList.get(pos);
+                    updateProduitFromListe(itemSelected);
                 }
             }
-        });
+        };
+        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(simpleItemTouchCallback);
+        itemTouchHelper.attachToRecyclerView(recyclerView);
+
+    }
+
+    private void updateProduitFromListe(Produit itemSelected) {
+        Intent intent;
+        intent = new Intent(ListeProduitsActivity.this, MajActivity.class);
+        intent.putExtra(Controle.EXTRA_PRODUIT, itemSelected);
+        startActivityForResult(intent, Controle.MAJ_PRODUIT_FROM_LISTE);
+    }
+
+    public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        super.onActivityResult(requestCode, resultCode, intent);
+        switch (requestCode) {
+            case Controle.MAJ_PRODUIT_FROM_LISTE:
+                // On relit tous les produits
+                readFromLocalStorage();
+
+        }
     }
 
     public void submitProduit(View view) {
-            Produit produit = new Produit(Long.toString((new Date()).getTime()),
-                    100,
-                    "description article",
-                    new Random().nextInt(3),
-                    new Float(new Random().nextInt(10000)/100),
-                    DbContract.SYNC_STATUS_FAILED);
+        Produit produit = new Produit(Long.toString((new Date()).getTime()),
+                100,
+                "description article",
+                new Random().nextInt(3),
+                new Float(new Random().nextInt(10000) / 100),
+                DbContract.SYNC_STATUS_FAILED);
 
-            saveToAppServer(produit);
+        saveToAppServer(produit);
     }
 
     private void readFromLocalStorage() {
@@ -180,7 +155,8 @@ public class ListeProduitsActivity extends AppCompatActivity {
                                     saveToLocalStorage(produit, DbContract.SYNC_STATUS_OK);
                                 } else {
                                     saveToLocalStorage(produit, DbContract.SYNC_STATUS_FAILED);
-
+                                    Controle.getInstance(ListeProduitsActivity.this).addLog(Controle.typeLog.ERROR, "ListeProduitsActivity.saveToAppServer erreur serveur: " + strResponse);
+                                    Toast.makeText(ListeProduitsActivity.this, "Erreur serveur: " + strResponse, Toast.LENGTH_SHORT).show();
                                 }
 
                             } catch (JSONException e) {
@@ -203,6 +179,7 @@ public class ListeProduitsActivity extends AppCompatActivity {
                         params.put("magasin", String.valueOf(produit.getMagasin()));
                         params.put("desc", produit.getDescription());
                         params.put("flgTR", String.valueOf(produit.getFlgTR()));
+                        params.put("prix", String.valueOf(produit.getPrix()));
                     } catch (Exception e) {
                         Controle.addLog(Controle.typeLog.ERROR, "ListeProduitsActivity.saveToAppServer.getParams " + e.getLocalizedMessage());
                     }

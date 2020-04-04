@@ -67,7 +67,7 @@ public class SetupActivity extends AppCompatActivity implements OnClickListener 
                 });
                 break;
             case R.id.btnSynchroniser:
-                Controle.getInstance(SetupActivity.this).uploadProduits();
+                DbHelper.synchronize(SetupActivity.this, 1);
                 break;
             case R.id.btnListeProduits:
                 intent = new Intent(SetupActivity.this, ListeProduitsActivity.class);
