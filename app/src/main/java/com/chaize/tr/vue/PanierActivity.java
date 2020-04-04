@@ -162,7 +162,7 @@ public class PanierActivity extends AppCompatActivity {
     }
 
     public void demanderPrix(String code) {
-        demanderPrix(code, 0.0f, 0);
+        demanderPrix(code, 0, 1);
     }
 
     public void demanderPrix(String code, float prix, int quantite) {
@@ -185,7 +185,10 @@ public class PanierActivity extends AppCompatActivity {
                 DbHelper dbHelper = new DbHelper(PanierActivity.this);
                 int seqMagasin = Controle.getInstance(PanierActivity.this).getMagasin().getSequence();
                 Produit produit = dbHelper.readProduitFromLocalDatabase(code, seqMagasin, dbHelper.getReadableDatabase());
-                editPrix.setText(String.valueOf(produit.getPrix()));
+                if (produit.getPrix()==0.0f)
+                    editPrix.setText("");
+                else
+                    editPrix.setText(String.valueOf(produit.getPrix()));
                 dbHelper.close();
             } else {
                 editPrix.setText(String.valueOf(prix));

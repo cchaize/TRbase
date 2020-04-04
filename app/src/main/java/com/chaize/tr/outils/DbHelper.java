@@ -343,7 +343,7 @@ public class DbHelper extends SQLiteOpenHelper {
 
         Cursor cursor = dbHelper.readTousProduitsFromLocalDatabase(database);
 
-        while (cursor.moveToNext()) {
+        while (cursor!=null && cursor.moveToNext()) {
             int sync_status = cursor.getInt(cursor.getColumnIndex((DbContract.PRD_SYNC)));
             if (sync_status == DbContract.SYNC_STATUS_FAILED || force==1) {
                 final String code = cursor.getString(cursor.getColumnIndex(DbContract.PRD_CODE));
@@ -391,7 +391,8 @@ public class DbHelper extends SQLiteOpenHelper {
                 MySingleton.getInstance(context).addToRequestQueue(stringRequest);
             }
         }
-        cursor.close();
+        if (cursor!=null)
+                cursor.close();
         //dbHelper.close();
 
     }

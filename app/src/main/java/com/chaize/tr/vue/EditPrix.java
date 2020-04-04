@@ -44,9 +44,11 @@ public class EditPrix extends androidx.appcompat.widget.AppCompatEditText {
         this.setFilters(new InputFilter[]{new DigitsInputFilter(MAX_INT, MAX_DECIMAL, 1000)});
     }
     public Float getPrix() {
+        Float prix = 0.0f;
         String str = this.getText().toString();
         String cleanString = str.replaceAll("[^0-9?!\\.]", "");
-        Float prix = new Float(cleanString);
+        if (!str.equals(""))
+             prix = new Float(cleanString);
         return prix;
     }
 
